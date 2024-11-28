@@ -80,12 +80,12 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUBJECT}_${SES}__pft_tracking_prob_wm_seed_0.trk 
         FMRI_PATH=${FMRI_DIR}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_space-T1w_desc-preproc_bold.nii.gz
         FMRI_CONFOUNDS_PATH=${FMRI_DIR}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_desc-confounds_timeseries.tsv
-        FMRI_MASK_PATH=${FMRI_DIR}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_desc-brain_mask.nii.gz
+
         if [ -f "$TRACKS_PATH" ] & [ ! -f "$FMRI_PATH" ] & [ ! -f "$FMIR_CONFOUNDS_PATH" ]; then
             cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT}/${SES}/dwi/${SUBJECT}_${SES}_run-1__pft_tracking_prob_wm_seed_0.trk
             cp $FMRI_PATH ${OUTPUT_FOLDER}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_space-T1w_desc-preproc_bold.nii.gz
             cp $FMRI_CONFOUNDS_PATH ${OUTPUT_FOLDER}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_desc-confounds_timeseries.tsv
-            cp $FMRI_MASK_PATH ${OUTPUT_FOLDER}/${SUBJECT}/${SES}/func/${SUBJECT}_${SES}_task-rest_desc-brain_mask.nii.gz
+
             python  ${MYDIR}/apps/connectivity/functional_connectivity.py $SUBJECT $SUBJECT
             python  ${MYDIR}/apps/connectivity/structural_connectivity.py $SUBJECT $SUBJECT
         else

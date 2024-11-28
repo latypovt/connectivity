@@ -73,6 +73,12 @@ def main():
             output_file = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_fc_matrix.npy')
             np.save(output_file, correlation_matrix)
             json.dump(out_labels, open(output_file.replace('.npy', '.json'), 'w'))
+            os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
+            
+            #save the time series and connectivity matrix for tvb
+            np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_FC_ts.txt'), time_series, delimiter='\t', fmt='%f')
+            np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_FC.csv'), correlation_matrix, delimiter=',', fmt='%f')
+
         session_pbar.close()
         print(f'Functional connectivity matrices saved to {args.output_dir}')
         

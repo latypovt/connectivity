@@ -31,8 +31,6 @@ def compute_connectivity_matrix(streamlines, parc_data, affine):
 
     conn_matrix, group = connectivity_matrix(streamlines, affine, parc_data, return_mapping=True, mapping_as_streamlines=True)
     
-
-    
     # Initialize matrix to store mean streamline lengths
     mean_length_matrix = np.zeros_like(conn_matrix, dtype=float)
     # Calculate mean streamline length for each pair of regions
@@ -75,6 +73,10 @@ def main():
             output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
             np.save(output_file, conn_matrix)
             np.save(output_file2, mean_length)
+            os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
+            np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
+
+
         session_pbar.close()
         print(f'Structural connectivity matrices saved to {args.output_dir}')
 
