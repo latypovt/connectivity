@@ -1,9 +1,7 @@
 import argparse
 import nibabel as nib
 import numpy as np
-from dipy.tracking.utils import connectivity_matrix
-from dipy.tracking.streamline import transform_streamlines
-from dipy.tracking.streamline import Streamlines
+from dipy.tracking.utils import connectivity_matrix, path_length, density_map, length
 from dipy.io.image import load_nifti
 from tqdm import tqdm
 import os
@@ -19,22 +17,36 @@ def load_parcellation(parc_file):
     return parc_data, affine
 
 def list_sessions(subject_dir):
-    return [d for d in os.listdir(subject_dir) if os.path.isdir(os.path.join(subject_dir, d)) and d.startswith('ses-')]
+    list = [d for d in os.listdir(subject_dir) if os.path.isdir(os.path.join(subject_dir, d)) and d.startswith('ses-')]
+    return list
 
 def list_runs(session_dir):
     return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.trk')]
+
 
 def compute_connectivity_matrix(streamlines, parc_data, affine):
     # Check if the affine matrix is square
     #print unqiue values in parc_data
     parc_data = parc_data.astype(int)
 
-    conn_matrix, group = connectivity_matrix(streamlines, affine, parc_data, return_mapping=True, mapping_as_streamlines=False)
-    conn_matrix = conn_matrix[1:,1:]
+    conn_matrix, group = connectivity_matrix(streamlines, affine, parc_data, return_mapping=True, mapping_as_streamlines=True)
+    
 
+    
+    # Initialize matrix to store mean streamline lengths
+    mean_length_matrix = np.zeros_like(conn_matrix, dtype=float)
+    # Calculate mean streamline length for each pair of regions
+    bundle_pbar = tqdm(zip(group.keys(), group.values()), desc='Streamline length', total=len(group.keys()), leave=False)
+    for (i, j), bundle in bundle_pbar:
+        mean_length_matrix[i, j] = np.mean(list(length(bundle)))
+        mean_length_matrix[j, i] = mean_length_matrix[i, j]
+    bundle_pbar.close()
+
+    conn_matrix = conn_matrix[1:,1:]
+    mean_length_matrix = mean_length_matrix[1:,1:]
     # drop first 3 rows and last 3 columns from the matrix array
 
-    return conn_matrix, group
+    return conn_matrix, group, mean_length_matrix
 
 def main():
     parser = argparse.ArgumentParser(description="Compute structural connectivity matrix from tractography and parcellation.")
@@ -48,18 +60,23 @@ def main():
     for ses_id, session in enumerate(sessions):
         session_dir = os.path.join(subject_dir, session, 'dwi')
         runs = list_runs(session_dir)
-        for index, run in enumerate(tqdm(runs, desc=f'Structural  {subject_dir, session}')):
+        session_pbar = tqdm(enumerate(runs), desc=f'Structural  {subject_dir, session}', total=len(runs), leave=False)
+        for index, run in session_pbar:
             streamline_file = os.path.join(session_dir, run)
                 # Load tractography data
             streamlines = load_tractography(streamline_file)
             parc_file = streamline_file.replace('_run-1__pft_tracking_prob_wm_seed_0.trk', '_DK_DiffusionSpace.nii.gz')
             parc_file = parc_file.replace('dwi', 'parc')
             parc_data, affine = load_parcellation(parc_file)
-            conn_matrix, group = compute_connectivity_matrix(streamlines, parc_data, affine)
+            conn_matrix, group, mean_length = compute_connectivity_matrix(streamlines, parc_data, affine)
 
            
-            output_file = os.path.join(args.output_dir, f'{args.subject_id}_ses-{ses_id+1}_run-{index+1}_sc_matrix.npy')
+            output_file = os.path.join(args.output_dir, session,  f'{args.subject_id}_{session}_run-{index+1}_sc_matrix.npy')
+            output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
             np.save(output_file, conn_matrix)
+            np.save(output_file2, mean_length)
+        session_pbar.close()
+        print(f'Structural connectivity matrices saved to {args.output_dir}')
 
 
 
