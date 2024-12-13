@@ -37,8 +37,10 @@ FAILED_SUBJECTS=()
 # Loop through each subject in the subject folder
 for SESSION in $(ls $TRACTOFLOW_DIR); do
     SUBJECT_DIR="${TRACTOFLOW_DIR}/${SESSION}"
-    cd $CWDIR
-    if [ -d "$SUBJECT_DIR" ]; then
+
+    #check that folders exist in all 3 directories
+    if [ -d "$SUBJECT_DIR" -a -d "${FMRI_DIR}/${SESSION}" -a -d "${FSS_DIR}/${SESSION}" ]; then
+        cd $CWDIR
         
         IFS='_' read -r -a array <<< "$SESSION"
         SUBJECT="${array[0]}"
@@ -96,7 +98,9 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         fi
         echo "Processing completed for : $SESSION"
     else
-        echo "Skipping $SUBJECT, not a directory"
+        echo "Required directories not found: $SUBJECT_DIR, ${FMRI_DIR}/${SESSION}, ${FSS_DIR}/${SESSION}"
+        # append $SESSION to the FAILED_SUBJECTS 
+        FAILED_SUBJECTS+=($SESSION)
     fi
 done
 
