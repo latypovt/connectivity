@@ -105,6 +105,12 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         cd ${OUTPUT_FOLDER}
 
         #check number of runs in the fmri folder (all runs are stored in the same folder)
+        if [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_*space-T1w_desc-preproc_bold.nii.gz ]; then
+            echo "fMRI data exists, but BOLD NIFTI is missing: ${FMRI_DIR}/${SUBJECT_SES} - perhaps fmriprep was not finished?" 
+            FAILED_FMRI+=($SESSION)
+            continue
+        fi
+
         RUNS_FMRI=$(ls ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_*space-T1w_desc-preproc_bold.nii.gz | wc -l)
         if [ $RUNS_FMRI -gt 1 ]; then
 
