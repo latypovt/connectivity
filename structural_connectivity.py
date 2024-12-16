@@ -83,14 +83,14 @@ def main():
                 np.save(output_file, conn_matrix)
                 np.save(output_file2, mean_length)
                 os.makedirs(os.path.join(args.output_dir, 'tvb'), exist_ok=True)
-                np.savetxt(os.path.join(args.output_dir, 'tvb', f'{args.subject_id}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
+                np.savetxt(os.path.join(args.output_dir, 'tvb', f'{args.subject_id}_run-{index+1}_SC.csv'), conn_matrix, delimiter=' ', fmt='%f')
             else:
                 output_file = os.path.join(args.output_dir, session,  f'{args.subject_id}_{session}_run-{index+1}_sc_matrix.npy')
                 output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
                 np.save(output_file, conn_matrix)
                 np.save(output_file2, mean_length)
                 os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
-                np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
+                np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter=' ', fmt='%f')
 
 
         session_pbar.close()
