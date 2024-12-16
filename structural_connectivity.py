@@ -18,6 +18,7 @@ def load_parcellation(parc_file):
 
 def list_sessions(subject_dir):
     list = [d for d in os.listdir(subject_dir) if os.path.isdir(os.path.join(subject_dir, d)) and d.startswith('ses-')]
+
     return list
 
 def list_runs(session_dir):
@@ -50,31 +51,46 @@ def main():
     parser = argparse.ArgumentParser(description="Compute structural connectivity matrix from tractography and parcellation.")
     parser.add_argument('subject_id', type=str, help='Subject ID')
     parser.add_argument('output_dir', type=str, help='Directory to save the connectivity matrices')
+    parser.add_argument('--no_ses', action='store_true', help='No session directory')
     args = parser.parse_args()
 
     subject_dir =  args.subject_id 
-    sessions = list_sessions(subject_dir)
+    if args.no_ses:
+        sessions = [subject_dir]
+    else:
+        sessions = list_sessions(subject_dir)
 
     for ses_id, session in enumerate(sessions):
-        session_dir = os.path.join(subject_dir, session, 'dwi')
+        if args.no_ses:
+            session_dir = os.path.join(subject_dir, 'dwi')
+        else:
+            session_dir = os.path.join(subject_dir, session, 'dwi')
         runs = list_runs(session_dir)
         session_pbar = tqdm(enumerate(runs), desc=f'Structural  {subject_dir, session}', total=len(runs), leave=False)
         for index, run in session_pbar:
             streamline_file = os.path.join(session_dir, run)
                 # Load tractography data
             streamlines = load_tractography(streamline_file)
-            parc_file = streamline_file.replace('_run-1__pft_tracking_prob_wm_seed_0.trk', '_DK_DiffusionSpace.nii.gz')
-            parc_file = parc_file.replace('dwi', 'parc')
+
+            parc_file = [d for d in os.listdir(os.path.join(subject_dir,'parc')) if d.endswith('_DK_DiffusionSpace.nii.gz')]
+            parc_file = os.path.join(subject_dir, 'parc', parc_file[0])
             parc_data, affine = load_parcellation(parc_file)
             conn_matrix, group, mean_length = compute_connectivity_matrix(streamlines, parc_data, affine)
 
-           
-            output_file = os.path.join(args.output_dir, session,  f'{args.subject_id}_{session}_run-{index+1}_sc_matrix.npy')
-            output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
-            np.save(output_file, conn_matrix)
-            np.save(output_file2, mean_length)
-            os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
-            np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
+            if args.no_ses:
+                output_file = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_sc_matrix.npy')
+                output_file2 = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_length.npy')
+                np.save(output_file, conn_matrix)
+                np.save(output_file2, mean_length)
+                os.makedirs(os.path.join(args.output_dir, 'tvb'), exist_ok=True)
+                np.savetxt(os.path.join(args.output_dir, 'tvb', f'{args.subject_id}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
+            else:
+                output_file = os.path.join(args.output_dir, session,  f'{args.subject_id}_{session}_run-{index+1}_sc_matrix.npy')
+                output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
+                np.save(output_file, conn_matrix)
+                np.save(output_file2, mean_length)
+                os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
+                np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter='\t', fmt='%f')
 
 
         session_pbar.close()
