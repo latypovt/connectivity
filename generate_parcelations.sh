@@ -25,8 +25,9 @@ fi
 MYDIR="/d/gmi/1/timurlatypov"
 # Load necessary modules
 module load mrtrix3src
+GMI=/d/gmi/1
 
-export SINGULARITYENV_BINDPATH=${MYDIR},${OUTPUT_FOLDER}
+export SINGULARITYENV_BINDPATH=${MYDIR},${OUTPUT_FOLDER},${GMI}
 
 
 CWDIR=${PWD}
@@ -105,7 +106,7 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         cd ${OUTPUT_FOLDER}
 
         #check number of runs in the fmri folder (all runs are stored in the same folder)
-        if [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_*space-T1w_desc-preproc_bold.nii.gz ]; then
+        if [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_space-T1w_desc-preproc_bold.nii.gz ] && [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-1_space-T1w_desc-preproc_bold.nii.gz ]; then
             echo "fMRI data exists, but BOLD NIFTI is missing: ${FMRI_DIR}/${SUBJECT_SES} - perhaps fmriprep was not finished?" 
             FAILED_FMRI+=($SESSION)
             continue
@@ -118,10 +119,12 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
             for RUN in $(seq 1 $RUNS_FMRI); do
                 FMRI_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-${RUN}_space-T1w_desc-preproc_bold.nii.gz
                 FMRI_CONFOUNDS_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-${RUN}_desc-confounds_timeseries.tsv
+                
 
                 if [ -f "$FMRI_PATH" ] & [ -f "$FMRI_CONFOUNDS_PATH" ]; then
                     cp $FMRI_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-${RUN}_space-T1w_desc-preproc_bold.nii.gz
                     cp $FMRI_CONFOUNDS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-${RUN}_desc-confounds_timeseries.tsv
+                    FMRI_RT=$(jq -r '.RepetitionTime' ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-${RUN}_space-T1w_desc-preproc_bold.json)
                 else
                     echo "fMRI files not found: $FMRI_PATH, $FMRI_CONFOUNDS_PATH"
                     # append $SESSION to the FAILED_SUBJECTS 
@@ -133,11 +136,14 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         elif [ $RUNS_FMRI -eq 1 ]; then
             FMRI_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_space-T1w_desc-preproc_bold.nii.gz
             FMRI_CONFOUNDS_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_desc-confounds_timeseries.tsv
+            
 
-            if [ ! -f $FMRI_PATH ]
-            then
+            if [ ! -f $FMRI_PATH ]; then
                 FMRI_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-1_space-T1w_desc-preproc_bold.nii.gz
                 FMRI_CONFOUNDS_PATH=${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-1_desc-confounds_timeseries.tsv
+                FMRI_RT=$(jq -r '.RepetitionTime' ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-1_space-T1w_desc-preproc_bold.json)
+            else
+                FMRI_RT=$(jq -r '.RepetitionTime' ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_space-T1w_desc-preproc_bold.json)
             fi 
 
             if [ -f "$FMRI_PATH" ] & [ -f "$FMRI_CONFOUNDS_PATH" ]; then
@@ -161,7 +167,7 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
             #loop through each run
             for RUN in $(seq 1 $RUNS_TRACTS); do
 
-                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk
+                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
 
                 if [ -f "$TRACKS_PATH" ] ; then
                     cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk
@@ -175,7 +181,7 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
 
 
         elif [ $RUNS_TRACTS -eq 1 ]; then
-            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_wm_seed_0.trk 
+            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_wm_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
             
 
             if [ -f "$TRACKS_PATH" ]; then
@@ -196,11 +202,11 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
 
         if [ -z "$SES" ]; then
             python  ${MYDIR}/apps/connectivity/structural_connectivity.py $SUBJECT $SUBJECT --no_ses
-            python  ${MYDIR}/apps/connectivity/functional_connectivity.py $SUBJECT $SUBJECT --no_ses
+            python  ${MYDIR}/apps/connectivity/functional_connectivity.py $SUBJECT $SUBJECT --no_ses --repetition_time $FMRI_RT
 
         else
             python  ${MYDIR}/apps/connectivity/structural_connectivity.py $SUBJECT $SUBJECT
-            python  ${MYDIR}/apps/connectivity/functional_connectivity.py $SUBJECT $SUBJECT
+            python  ${MYDIR}/apps/connectivity/functional_connectivity.py $SUBJECT $SUBJECT --repetition_time $FMRI_RT
         fi
 
     elif [ ! -d $SUBJECT_DIR ]; then
@@ -209,7 +215,7 @@ for SESSION in $(ls $TRACTOFLOW_DIR); do
         # append $SESSION to the FAILED_SUBJECTS 
         FAILED_SUBJECTS+=($SESSION)
         continue
-    elif [ ! -d ${FMRI_DIR}/${SUBJECT}* ]; then
+    elif [ ! -d ${FMRI_DIR}/${SUBJECT} ]; then
         echo "Error while processing $SESSION"
         echo "fMRI data is missing or not found:  ${FMRI_DIR}/${SESSION}. Failed to find preprocessed data"
         # append $SESSION to the FAILED_SUBJECTS 

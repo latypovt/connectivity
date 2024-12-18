@@ -20,7 +20,7 @@ def get_labels(parc='DK'):
     labels = labels[1].values.tolist()
     return labels
 
-def extract_time_series(fmri_file, parc_file, confounds_file=None, list_of_confounds=None):
+def extract_time_series(fmri_file, parc_file, repetition_time, confounds_file=None, list_of_confounds=None):
     #if confounds_file and list_of_confounds:
     confounds_list = [fmri_file, confounds_file, list_of_confounds]
     fmri_img = nib.load(fmri_file)
@@ -28,7 +28,7 @@ def extract_time_series(fmri_file, parc_file, confounds_file=None, list_of_confo
     confounds, sample_mask = load_confounds(fmri_file, strategy=['high_pass', 'motion', 'wm_csf', 'global_signal'], motion='basic', wm_csf='basic', global_signal='basic')
     labels = get_labels(parc='DK')
 
-    masker = NiftiLabelsMasker(labels_img=parc_img, smoothing_fwhm=6, keep_masked_labels=True, t_r=1.5)
+    masker = NiftiLabelsMasker(labels_img=parc_img, smoothing_fwhm=6, keep_masked_labels=True, t_r=repetition_time)
     time_series = masker.fit_transform(fmri_img, confounds=confounds, sample_mask=sample_mask)
     returned_labels = []#masker.region_names_
     return time_series, returned_labels
@@ -50,6 +50,7 @@ def main():
     parser.add_argument('subject_id', type=str, help='Subject ID')
     parser.add_argument('output_dir', type=str, help='Directory to save the connectivity matrices')
     parser.add_argument('--no_ses', action='store_true', help='No session directory')
+    parser.add_argument('--repetition_time', type=float, default=1.5, help='Repetition time of the fMRI data')
     args = parser.parse_args()
 
     subject_dir =  args.subject_id 
@@ -72,7 +73,7 @@ def main():
             parc_file = os.path.join(subject_dir, 'parc', parc_file[0])
             confound_file = fmri_file.replace('space-T1w_desc-preproc_bold.nii.gz', 'desc-confounds_timeseries.tsv')
             confound_json = confound_file.replace('.tsv', '.json')
-            time_series, out_labels = extract_time_series(fmri_file, parc_file, confounds_file=confound_file, list_of_confounds=confound_json)
+            time_series, out_labels = extract_time_series(fmri_file, parc_file, confounds_file=confound_file, list_of_confounds=confound_json, repetition_time=args.repetition_time)
             correlation_matrix = compute_functional_connectivity(time_series)
 
             if args.no_ses:
