@@ -2,17 +2,19 @@
 
 # Function to display usage
 usage() {
-    echo "Usage: $0 --tractoflow_dir <path_to_tractoflow> --fmriprep_dir  --freesurfer_subjects_dir <path_to_freesurfer_subjects> --output_folder <path_to_output_folder>"
+    echo "Usage: $0 --tractoflow_dir <path_to_tractoflow> --fmriprep_dir <path_to_fmriprep> --freesurfer_subjects_dir <path_to_freesurfer_subjects> --output_folder <path_to_output_folder> --threads <number_of_threads>"
     exit 1
 }
 
 # Parse command-line arguments
+THREADS=1
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --tractoflow_dir) TRACTOFLOW_DIR="$2"; shift ;;
         --fmriprep_dir) FMRI_DIR="$2"; shift ;;
         --freesurfer_subjects_dir) FSS_DIR="$2"; shift ;;
         --output_folder) OUTPUT_FOLDER="$2"; shift ;;
+        --threads) THREADS="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; usage ;;
     esac
     shift
@@ -22,6 +24,7 @@ done
 if [ -z "$TRACTOFLOW_DIR" ] || [ -z "$FSS_DIR" ] || [ -z "$OUTPUT_FOLDER" ] || [ -z "$FMRI_DIR" ]; then
     usage
 fi
+
 MYDIR="/d/gmi/1/timurlatypov"
 # Load necessary modules
 module load mrtrix3src
@@ -166,9 +169,9 @@ process_subject() {
             #loop through each run
             for RUN in $(seq 1 $RUNS_TRACTS); do
 
-                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
+                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_*_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
 
-                if [ -f "$TRACKS_PATH" ] ; then
+                if [ -f $TRACKS_PATH ] ; then
                     cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk
                 else
                     echo "Tracts are missing or not found: $TRACKS_PATH"
@@ -180,10 +183,10 @@ process_subject() {
 
 
         elif [ $RUNS_TRACTS -eq 1 ]; then
-            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_wm_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
+            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_*_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
             
 
-            if [ -f "$TRACKS_PATH" ]; then
+            if [ -f $TRACKS_PATH ]; then
                 cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking_prob_wm_seed_0.trk
                 
             else
@@ -237,6 +240,9 @@ process_subject() {
 
 # Loop through each subject in the subject folder and process them in parallel
 for SESSION in $(ls $TRACTOFLOW_DIR); do
+    while [ $(jobs -r | wc -l) -ge $THREADS ]; do
+        sleep 1
+    done
     process_subject $SESSION &
 done
 
