@@ -25,7 +25,7 @@ def extract_time_series(fmri_file, parc_file, repetition_time, confounds_file=No
     confounds_list = [fmri_file, confounds_file, list_of_confounds]
     fmri_img = nib.load(fmri_file)
     parc_img =  nib.load(parc_file)
-    confounds, sample_mask = load_confounds(fmri_file, strategy=['high_pass', 'motion', 'wm_csf', 'global_signal'], motion='basic', wm_csf='basic', global_signal='basic')
+    confounds, sample_mask = load_confounds(fmri_file, strategy=['high_pass', 'motion', 'wm_csf'], motion='basic', wm_csf='basic') #, global_signal='basic'
     labels = get_labels(parc='DK')
 
     masker = NiftiLabelsMasker(labels_img=parc_img, smoothing_fwhm=6, keep_masked_labels=True, t_r=repetition_time)
