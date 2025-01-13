@@ -169,10 +169,10 @@ process_subject() {
             #loop through each run
             for RUN in $(seq 1 $RUNS_TRACTS); do
 
-                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_*_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
+                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_*_seed_0.tck #__pft_tracking_prob_interface_seed_0.trk #
 
                 if [ -f $TRACKS_PATH ] ; then
-                    cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.trk
+                    cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.tck
                 else
                     echo "Tracts are missing or not found: $TRACKS_PATH"
                     # append $SESSION to the FAILED_SUBJECTS 
@@ -183,11 +183,11 @@ process_subject() {
 
 
         elif [ $RUNS_TRACTS -eq 1 ]; then
-            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_*_seed_0.trk #__pft_tracking_prob_interface_seed_0.trk #
+            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_*_seed_0.tck #__pft_tracking_prob_interface_seed_0.trk #
             
 
             if [ -f $TRACKS_PATH ]; then
-                cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking_prob_wm_seed_0.trk
+                cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking_prob_wm_seed_0.tck
                 
             else
                 echo "Tracts are missing or not found: $TRACKS_PATH"

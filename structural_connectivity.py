@@ -22,7 +22,7 @@ def list_sessions(subject_dir):
     return list
 
 def list_runs(session_dir):
-    return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.trk')]
+    return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.tck')]
 
 
 def compute_connectivity_matrix(streamlines, parc_data, affine):
