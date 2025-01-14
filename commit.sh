@@ -2,7 +2,11 @@
 
 # Function to display usage
 usage() {
+  echo "Run COMMIT on TractoFlow output"
+  echo "This script runs COMMIT on the TractoFlow output for all subjects in parallel"
   echo "Usage: $0 -d TRACTOFLOW_DIR -t NUM_THREADS"
+  echo "  -d TRACTOFLOW_DIR: Path to the TractoFlow output directory"
+  echo "  -t NUM_THREADS: Number of threads to use"
   exit 1
 }
 
@@ -43,14 +47,23 @@ process_subject() {
   mkdir -p ${OUT_DIR}
 
   export SINGULARITYENV_BINDPATH=${PWD}
+  
 
   # Run the command inside the singularity container
   singularity run --bind=/d/gmi/1/timurlatypov:/d/gmi/1/timurlatypov /d/gmi/1/timurlatypov/apps/scilus_1.6.0.sif \
   scil_run_commit.py ${TRACK_FILE} ${DWI_FILE} ${BVAL_FILE} ${BVEC_FILE} ${OUT_DIR} \
     --in_peaks ${PEAKS_FILE} --b_thr 50 --nbr_dir 500 --ball_stick \
     --para_diff "1.7E-3" --iso_diff "2.0E-3" -v > ${SUBJECT_DIR}/commit.log 2>&1
+  mv ${SUBJECT_DIR}/COMMIT/commit_1 ${SUBJECT_DIR}/Commit
+  rmdir -f ${SUBJECT_DIR}/COMMIT
+  mv ${SUBJECT_DIR}/Commit/essential_tractogram.trk ${SUBJECT_DIR}/PFT_Tracking/${SUBJECT_ID}__commit_essential_tractogram.trk
 
 }
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
 
 # Loop through each subject directory in the tractoflow folder and process them in parallel
 for SUBJECT_DIR in ${TRACTOFLOW_DIR}/*; do

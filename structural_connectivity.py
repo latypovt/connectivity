@@ -8,6 +8,15 @@ import os
 from nilearn.input_data import NiftiLabelsMasker
 
 def load_tractography(trk_file):
+    """
+    Load tractography data from a TRK file.
+
+    Args:
+    - trk_file (str): Path to the TRK file
+
+    Returns:
+    - streamlines (list): A list of streamlines (each streamline is a 2D numpy array of shape (N, 3))
+    """
     tractogram = nib.streamlines.load(trk_file)
     streamlines = tractogram.streamlines
     return streamlines
@@ -22,10 +31,62 @@ def list_sessions(subject_dir):
     return list
 
 def list_runs(session_dir):
-    return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.tck')]
+    return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.trk')]
+
+def compute_seeds_per_region(parc_data, seeds_per_voxel=10):
+    """
+    Computes the total number of seeds per region in a parcellation map.
+    
+    Args:
+    - parcellation_map (str): Path to the parcellation map (e.g., 'aparc+aseg.nii.gz')
+    - seeds_per_voxel (int): Number of seeds per voxel (default is 10)
+    
+    Returns:
+    - seeds_per_region (list): A list containing the total number of seeds per region.
+    """
+    seg_data = nib.load(parc_data).get_fdata()
+    labels = np.unique(seg_data)
+    # Initialize a list to store the number of seeds per region
+    seeds_per_region = []
+
+    # Iterate through each region label and compute the number of seeds for that region
+    for label in labels:
+        if label == 0:
+            continue  # Skip background (label 0)
+        
+        # Count the number of voxels belonging to this region
+        num_voxels = np.sum(seg_data == label)
+        
+        # Compute the total number of seeds for this region
+        total_seeds = num_voxels * seeds_per_voxel
+        
+        # Append the result to the list
+        seeds_per_region.append(total_seeds)
+    
+    return seeds_per_region
+
+# Example usage:
+parcellation_map_path = 'aparc+aseg.nii.gz'  # Path to your parcellation map
+seeds_per_region = compute_seeds_per_region(parcellation_map_path)
+
+print("Seeds per region:", seeds_per_region)
+
 
 
 def compute_connectivity_matrix(streamlines, parc_data, affine):
+    """
+    Computes the structural connectivity matrix from a set of streamlines and a parcellation map.
+
+    Args:
+    - streamlines (list): A list of streamlines (each streamline is a 2D numpy array of shape (N, 3))
+    - parc_data (str): Path to the parcellation map (e.g., 'aparc+aseg.nii.gz')
+    - affine (numpy.ndarray): Affine matrix of the parcellation map
+
+    Returns:
+    - conn_matrix (numpy.ndarray): A 2D numpy array representing the structural connectivity matrix
+    - group (dict): A dictionary containing the mapping of each streamline to a pair of regions
+    """
+
     # Check if the affine matrix is square
     #print unqiue values in parc_data
     parc_data = parc_data.astype(int)
@@ -46,6 +107,9 @@ def compute_connectivity_matrix(streamlines, parc_data, affine):
     # drop first 3 rows and last 3 columns from the matrix array
 
     return conn_matrix, group, mean_length_matrix
+
+
+
 
 def main():
     parser = argparse.ArgumentParser(description="Compute structural connectivity matrix from tractography and parcellation.")
