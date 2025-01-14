@@ -34,6 +34,12 @@ fi
 process_subject() {
   SUBJECT_DIR=$1
   SUBJECT_ID=$(basename ${SUBJECT_DIR})
+    # Check if Commit directory already exists
+  if [ -d "${SUBJECT_DIR}/Commit" ]; then
+    echo "Commit directory already exists for subject ${SUBJECT_ID}, skipping..."
+    return
+  fi
+  echo "Processing subject ${SUBJECT_ID}..."
 
   # Paths for subject-specific files
   TRACK_FILE="${SUBJECT_DIR}/PFT_Tracking/${SUBJECT_ID}__pft_tracking_prob_wm_seed_0.trk"
@@ -55,7 +61,7 @@ process_subject() {
     --in_peaks ${PEAKS_FILE} --b_thr 50 --nbr_dir 500 --ball_stick \
     --para_diff "1.7E-3" --iso_diff "2.0E-3" -v > ${SUBJECT_DIR}/commit.log 2>&1
   mv ${SUBJECT_DIR}/COMMIT/commit_1 ${SUBJECT_DIR}/Commit
-  rmdir -f ${SUBJECT_DIR}/COMMIT
+  rmdir ${SUBJECT_DIR}/COMMIT
   mv ${SUBJECT_DIR}/Commit/essential_tractogram.trk ${SUBJECT_DIR}/PFT_Tracking/${SUBJECT_ID}__commit_essential_tractogram.trk
 
 }
@@ -70,7 +76,6 @@ for SUBJECT_DIR in ${TRACTOFLOW_DIR}/*; do
   while [ $(jobs -r | wc -l) -ge ${NUM_THREADS} ]; do
     sleep 1
   done
-  echo "Processing subject: ${SUBJECT_DIR}"
   process_subject ${SUBJECT_DIR} &
 done
 
