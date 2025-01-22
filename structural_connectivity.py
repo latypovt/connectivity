@@ -51,20 +51,17 @@ def compute_seeds_per_region(parc_data, seeds_per_voxel=10):
 
     # Iterate through each region label and compute the number of seeds for that region
     for label in labels:
-        if label == 0:
-            continue  # Skip background (label 0)
-        
         # Count the number of voxels belonging to this region
         num_voxels = np.sum(seg_data == label)
         
         # Compute the total number of seeds for this region
         total_seeds = num_voxels * seeds_per_voxel
         for label2 in labels:
-            if label2 == 0:
-                continue
             vox1 = np.sum(seg_data == label)
             vox2 = np.sum(seg_data == label2)
             pair_seeds[int(label), int(label2)] = (vox1 + vox2) * seeds_per_voxel/2.0
+
+    pair_seeds = pair_seeds[1:,1:]
 
     return pair_seeds
 
