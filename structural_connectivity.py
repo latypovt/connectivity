@@ -31,7 +31,7 @@ def list_sessions(subject_dir):
     return list
 
 def list_runs(session_dir):
-    return [f for f in os.listdir(session_dir) if f.endswith('tracking_prob_wm_seed_0.trk')]
+    return [f for f in os.listdir(session_dir) if f.endswith('__pft_tracking.trk')]
 
 def compute_seeds_per_region(parc_data, seeds_per_voxel=10):
     """
@@ -47,7 +47,7 @@ def compute_seeds_per_region(parc_data, seeds_per_voxel=10):
     seg_data = nib.load(parc_data).get_fdata()
     labels = np.unique(seg_data)
     # Initialize a list to store the number of seeds per region
-    seeds_per_region = []
+    pair_seeds = np.zeros((len(labels), len(labels)))
 
     # Iterate through each region label and compute the number of seeds for that region
     for label in labels:
@@ -59,21 +59,17 @@ def compute_seeds_per_region(parc_data, seeds_per_voxel=10):
         
         # Compute the total number of seeds for this region
         total_seeds = num_voxels * seeds_per_voxel
-        
-        # Append the result to the list
-        seeds_per_region.append(total_seeds)
-    
-    return seeds_per_region
+        for label2 in labels:
+            if label2 == 0:
+                continue
+            vox1 = np.sum(seg_data == label)
+            vox2 = np.sum(seg_data == label2)
+            pair_seeds[int(label), int(label2)] = (vox1 + vox2) * seeds_per_voxel/2.0
 
-# Example usage:
-parcellation_map_path = 'aparc+aseg.nii.gz'  # Path to your parcellation map
-seeds_per_region = compute_seeds_per_region(parcellation_map_path)
-
-print("Seeds per region:", seeds_per_region)
+    return pair_seeds
 
 
-
-def compute_connectivity_matrix(streamlines, parc_data, affine):
+def compute_connectivity_matrix(streamlines, parc_data, affine, seed_mat, commit=None):
     """
     Computes the structural connectivity matrix from a set of streamlines and a parcellation map.
 
@@ -95,18 +91,34 @@ def compute_connectivity_matrix(streamlines, parc_data, affine):
     
     # Initialize matrix to store mean streamline lengths
     mean_length_matrix = np.zeros_like(conn_matrix, dtype=float)
+
     # Calculate mean streamline length for each pair of regions
     bundle_pbar = tqdm(zip(group.keys(), group.values()), desc='Streamline length', total=len(group.keys()), leave=False)
-    for (i, j), bundle in bundle_pbar:
-        mean_length_matrix[i, j] = np.mean(list(length(bundle)))
-        mean_length_matrix[j, i] = mean_length_matrix[i, j]
-    bundle_pbar.close()
+    if commit is not None:
+        commit_matrix = np.zeros_like(conn_matrix, dtype=float)
+        for (i, j), bundle in bundle_pbar:
+            mean_length_matrix[i, j] = np.mean(list(length(bundle)))
+            mean_length_matrix[j, i] = mean_length_matrix[i, j]
+            if isinstance(commit[bundle], np.ndarray):
+                commit_matrix[i, j] = np.mean(commit[bundle])
+            else:
+                commit_matrix[i, j] = commit[bundle]
+            commit_matrix[j, i] = commit_matrix[i, j]
+        bundle_pbar.close()
+    else:
+        for (i, j), bundle in bundle_pbar:
+            mean_length_matrix[i, j] = np.mean(list(length(bundle)))
+            mean_length_matrix[j, i] = mean_length_matrix[i, j]
+        bundle_pbar.close()
+        commit_matrix = None
 
     conn_matrix = conn_matrix[1:,1:]
     mean_length_matrix = mean_length_matrix[1:,1:]
+    normalized_conn_matrix = conn_matrix / seed_mat
     # drop first 3 rows and last 3 columns from the matrix array
+    
 
-    return conn_matrix, group, mean_length_matrix
+    return conn_matrix, normalized_conn_matrix, mean_length_matrix, commit_matrix
 
 
 
@@ -133,28 +145,44 @@ def main():
         session_pbar = tqdm(enumerate(runs), desc=f'Structural  {subject_dir, session}', total=len(runs), leave=False)
         for index, run in session_pbar:
             streamline_file = os.path.join(session_dir, run)
+            commit_file = os.path.join(session_dir, run.replace('__pft_tracking.trk', '__pft_tracking_weights.txt'))
+            if os.path.exists(commit_file):
+                commit = np.loadtxt(commit_file)
+            else:
+                commit = None
                 # Load tractography data
             streamlines = load_tractography(streamline_file)
 
             parc_file = [d for d in os.listdir(os.path.join(subject_dir,'parc')) if d.endswith('_DK_DiffusionSpace.nii.gz')]
             parc_file = os.path.join(subject_dir, 'parc', parc_file[0])
             parc_data, affine = load_parcellation(parc_file)
-            conn_matrix, group, mean_length = compute_connectivity_matrix(streamlines, parc_data, affine)
+            seed_matrix = compute_seeds_per_region(parc_file)
+            conn_matrix, norm_conn_matrix, mean_length, commit_matrix = compute_connectivity_matrix(streamlines, parc_data, affine, seed_matrix, commit)
 
             if args.no_ses:
                 output_file = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_sc_matrix.npy')
                 output_file2 = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_length.npy')
+                output_file3 = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_norm_sc_matrix.npy')
                 np.save(output_file, conn_matrix)
                 np.save(output_file2, mean_length)
+                np.save(output_file3, norm_conn_matrix)
                 os.makedirs(os.path.join(args.output_dir, 'tvb'), exist_ok=True)
                 np.savetxt(os.path.join(args.output_dir, 'tvb', f'{args.subject_id}_run-{index+1}_SC.csv'), conn_matrix, delimiter=' ', fmt='%f')
+                if commit_matrix is not None:
+                    output_file4 = os.path.join(args.output_dir, f'{args.subject_id}_run-{index+1}_commit.npy')
+                    np.save(output_file4, commit_matrix)
             else:
                 output_file = os.path.join(args.output_dir, session,  f'{args.subject_id}_{session}_run-{index+1}_sc_matrix.npy')
                 output_file2 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_length.npy')
+                output_file3 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_norm_sc_matrix.npy')
                 np.save(output_file, conn_matrix)
                 np.save(output_file2, mean_length)
+                np.save(output_file3, norm_conn_matrix)
                 os.makedirs(os.path.join(args.output_dir, session, 'tvb'), exist_ok=True)
                 np.savetxt(os.path.join(args.output_dir, session, 'tvb', f'{args.subject_id}_{session}_run-{index+1}_SC.csv'), conn_matrix, delimiter=' ', fmt='%f')
+                if commit_matrix is not None:
+                    output_file4 = os.path.join(args.output_dir, session, f'{args.subject_id}_{session}_run-{index+1}_commit.npy')
+                    np.save(output_file4, commit_matrix)
 
 
         session_pbar.close()

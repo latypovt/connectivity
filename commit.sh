@@ -35,8 +35,8 @@ process_subject() {
   SUBJECT_DIR=$1
   SUBJECT_ID=$(basename ${SUBJECT_DIR})
     # Check if Commit directory already exists
-  if [ -d "${SUBJECT_DIR}/Commit" ]; then
-    echo "Commit directory already exists for subject ${SUBJECT_ID}, skipping..."
+  if [ -f "${SUBJECT_DIR}/PFT_Tracking/${SUBJECT_ID}__commit_essential_tractogram.trk" ]; then
+    echo "Commit file already exists for subject ${SUBJECT_ID}, skipping..."
     return
   fi
   echo "Processing subject ${SUBJECT_ID}..."

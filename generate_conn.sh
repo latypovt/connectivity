@@ -3,6 +3,7 @@
 # Function to display usage
 usage() {
     echo "Usage: $0 --tractoflow_dir <path_to_tractoflow> --fmriprep_dir <path_to_fmriprep> --freesurfer_subjects_dir <path_to_freesurfer_subjects> --output_folder <path_to_output_folder> --threads <number_of_threads>"
+    echo "Please use full paths - script calls for Singularity container"
     exit 1
 }
 
@@ -109,7 +110,7 @@ process_subject() {
 
         #check number of runs in the fmri folder (all runs are stored in the same folder)
         if [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_space-T1w_desc-preproc_bold.nii.gz ] && [ ! -f ${FMRI_DIR}/${SUBJECT_SES}/func/${SUB_SES_FILENAME}_task-rest_run-1_space-T1w_desc-preproc_bold.nii.gz ]; then
-            echo "fMRI data exists, but BOLD NIFTI is missing: ${FMRI_DIR}/${SUBJECT_SES} - perhaps fmriprep was not finished?" 
+            echo "fMRI data exists, but BOLD NIFTI is missing: ${FMRI_DIR}/${SUBJECT_SES} - perhaps fmriprep was not finished? (or full path is not provided)" 
             FAILED_FMRI+=($SESSION)
             return
         fi
@@ -169,10 +170,15 @@ process_subject() {
             #loop through each run
             for RUN in $(seq 1 $RUNS_TRACTS); do
 
-                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_*_seed_0.tck #__pft_tracking_prob_interface_seed_0.trk #
+                TRACKS_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/PFT_Tracking/${SUB_SES_FILENAME}_run-${RUN}__commit_essential_tractogram.trk #pft_tracking_prob_*_seed_0.trk
+                COMMIT_PATH=${TRACTOFLOW_DIR}/${SUB_SES_FILENAME}_run-${RUN}/Commit/streamline_weights.txt
+
 
                 if [ -f $TRACKS_PATH ] ; then
-                    cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_prob_wm_seed_0.tck
+                    cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking.trk
+                    if [ -f $COMMIT_PATH ]; then
+                        cp $COMMIT_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-${RUN}__pft_tracking_weights.txt
+                    fi
                 else
                     echo "Tracts are missing or not found: $TRACKS_PATH"
                     # append $SESSION to the FAILED_SUBJECTS 
@@ -183,11 +189,15 @@ process_subject() {
 
 
         elif [ $RUNS_TRACTS -eq 1 ]; then
-            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__pft_tracking_prob_*_seed_0.tck #__pft_tracking_prob_interface_seed_0.trk #
+            TRACKS_PATH=${TRACTOFLOW_DIR}/${SESSION}/PFT_Tracking/${SUB_SES_FILENAME}__commit_essential_tractogram.trk #pft_tracking_prob_*_seed_0.trk
+            COMMIT_PATH=${TRACTOFLOW_DIR}/${SESSION}/Commit/streamline_weights.txt 
             
 
             if [ -f $TRACKS_PATH ]; then
-                cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking_prob_wm_seed_0.tck
+                cp $TRACKS_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking.trk
+                if [ -f $COMMIT_PATH ]; then
+                    cp $COMMIT_PATH ${OUTPUT_FOLDER}/${SUBJECT_SES}/dwi/${SUB_SES_FILENAME}_run-1__pft_tracking_weights.txt
+                fi
                 
             else
                 echo "Tracts are missing or not found: $TRACKS_PATH"
