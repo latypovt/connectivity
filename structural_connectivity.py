@@ -95,15 +95,11 @@ def compute_connectivity_matrix(streamlines, parc_data, affine, seed_mat, commit
     # Calculate mean streamline length for each pair of regions
     bundle_pbar = tqdm(zip(group.keys(), group.values()), desc='Streamline length', total=len(group.keys()), leave=False)
     if commit is not None:
+        commit = commit.flatten()
         commit_matrix = np.zeros_like(conn_matrix, dtype=float)
         for (i, j), bundle in bundle_pbar:
             mean_length_matrix[i, j] = np.mean(list(length(bundle)))
             mean_length_matrix[j, i] = mean_length_matrix[i, j]
-            if isinstance(commit[bundle], np.ndarray):
-                commit_matrix[i, j] = np.mean(commit[bundle])
-            else:
-                commit_matrix[i, j] = commit[bundle]
-            commit_matrix[j, i] = commit_matrix[i, j]
         bundle_pbar.close()
     else:
         for (i, j), bundle in bundle_pbar:
@@ -148,6 +144,7 @@ def main():
             commit_file = os.path.join(session_dir, run.replace('__pft_tracking.trk', '__pft_tracking_weights.txt'))
             if os.path.exists(commit_file):
                 commit = np.loadtxt(commit_file)
+                commit = None
             else:
                 commit = None
                 # Load tractography data
